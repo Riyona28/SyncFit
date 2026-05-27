@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitSync AI — Accountability Agent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d14;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --surface3: #222d42;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6584;
+    --accent4: #ffd166;
+    --text: #e8eaf6;
+    --text-muted: #7986a3;
+    --border: #1e2d45;
+    --green: #00d4aa;
+    --red: #ff6584;
+    --yellow: #ffd166;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* NAV */
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 64px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; }
+  .nav-logo .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
+    color: var(--text-muted); border: none; background: none; transition: all .2s;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--surface2); }
+  .nav-tab.active { color: var(--text); background: var(--accent); }
+  .nav-user { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent3));
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+
+  /* LAYOUT */
+  .page { display: none; padding: 28px; max-width: 1280px; margin: 0 auto; }
+  .page.active { display: block; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .grid-4 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 600px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+  /* CARDS */
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+  }
+  .card-title { font-size: 0.78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+  .card-value { font-size: 2.2rem; font-weight: 800; }
+  .card-sub { font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* STAT CARDS */
+  .stat-card { display: flex; flex-direction: column; gap: 6px; }
+  .stat-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+  .badge-green { background: rgba(0,212,170,.15); color: var(--green); }
+  .badge-red { background: rgba(255,101,132,.15); color: var(--red); }
+  .badge-yellow { background: rgba(255,209,102,.15); color: var(--yellow); }
+  .badge-purple { background: rgba(108,99,255,.15); color: var(--accent); }
+
+  /* PROGRESS RING */
+  .ring-wrap { display: flex; align-items: center; gap: 20px; }
+  .ring-svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--surface2); stroke-width: 8; }
+  .ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+  .ring-center { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; top: 0; left: 0; }
+  .ring-container { position: relative; flex-shrink: 0; }
+
+  /* CHECKLIST */
+  .checklist { display: flex; flex-direction: column; gap: 10px; }
+  .check-item {
+    display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+    background: var(--surface2); border-radius: var(--radius-sm); cursor: pointer;
+    border: 1.5px solid transparent; transition: all .2s;
+  }
+  .check-item:hover { border-color: var(--accent); }
+  .check-item.done { border-color: var(--green); opacity: .85; }
+  .check-box {
+    width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--text-muted);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .2s;
+    font-size: 0.7rem;
+  }
+  .check-item.done .check-box { background: var(--green); border-color: var(--green); color: #000; }
+  .check-label { flex: 1; }
+  .check-name { font-size: 0.9rem; font-weight: 600; }
+  .check-meta { font-size: 0.75rem; color: var(--text-muted); }
+  .check-pts { font-size: 0.8rem; font-weight: 700; color: var(--yellow); }
+
+  /* LEADERBOARD */
+  .lb-table { width: 100%; border-collapse: collapse; }
+  .lb-table th { text-align: left; font-size: 0.72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); padding: 0 12px 12px; border-bottom: 1px solid var(--border); }
+  .lb-table td { padding: 13px 12px; border-bottom: 1px solid rgba(30,45,69,.5); font-size: 0.88rem; }
+  .lb-table tr:last-child td { border-bottom: none; }
+  .lb-table tr.me td { background: rgba(108,99,255,.08); }
+  .rank-num { font-weight: 800; font-size: 1rem; }
+  .rank-1 { color: #ffd700; }
+  .rank-2 { color: #c0c0c0; }
+  .rank-3 { color: #cd7f32; }
+  .lb-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; }
+  .lb-user { display: flex; align-items: center; gap: 10px; }
+  .streak-badge { background: rgba(255,209,102,.12); color: var(--yellow); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+  .progress-bar-wrap { background: var(--surface2); border-radius: 6px; height: 6px; width: 90px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  /* AI INSIGHT CARDS */
+  .insight-card {
+    background: var(--surface2); border-radius: var(--radius-sm); padding: 16px 18px;
+    border-left: 3px solid var(--accent); margin-bottom: 12px;
+  }
+  .insight-card.warn { border-left-color: var(--yellow); }
+  .insight-card.alert { border-left-color: var(--red); }
+  .insight-card.good { border-left-color: var(--green); }
+  .insight-icon { font-size: 1.3rem; margin-bottom: 6px; }
+  .insight-text { font-size: 0.88rem; line-height: 1.5; }
+  .insight-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 4px; }
+
+  /* AGENT CARDS */
+  .agent-card {
+    background: var(--surface2); border-radius: var(--radius); padding: 20px;
+    border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;
+  }
+  .agent-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+  .agent-name { font-weight: 700; font-size: 0.95rem; }
+  .agent-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+  .agent-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--green); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* FORM */
+  .form-group { margin-bottom: 20px; }
+  .form-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; display: block; letter-spacing: .04em; }
+  .form-input {
+    width: 100%; padding: 11px 14px; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; outline: none; transition: border .2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .goal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .chip {
+    padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    background: var(--surface2); border: 1.5px solid var(--border); cursor: pointer; transition: all .2s; color: var(--text-muted);
+  }
+  .chip.active { background: rgba(108,99,255,.2); border-color: var(--accent); color: var(--text); }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .type-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .type-card {
+    padding: 16px 12px; border-radius: var(--radius-sm); background: var(--surface2); border: 1.5px solid var(--border);
+    text-align: center; cursor: pointer; transition: all .2s;
+  }
+  .type-card:hover, .type-card.active { border-color: var(--accent); background: rgba(108,99,255,.12); }
+  .type-card .ti { font-size: 1.6rem; margin-bottom: 6px; }
+  .type-card .tl { font-size: 0.82rem; font-weight: 600; }
+  .btn { padding: 12px 28px; border-radius: var(--radius-sm); font-weight: 700; font-size: 0.9rem; cursor: pointer; border: none; transition: all .2s; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #5a52e0); color: #fff; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.4); }
+  .btn-outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+  .btn-outline:hover { background: rgba(108,99,255,.1); }
+  .step-indicators { display: flex; gap: 10px; margin-bottom: 28px; }
+  .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--border); cursor: pointer; }
+  .step-dot.active { background: var(--accent); border-color: var(--accent); }
+  .step-dot.done { background: var(--green); border-color: var(--green); }
+  .form-step { display: none; }
+  .form-step.active { display: block; }
+
+  /* NUDGE BANNER */
+  .nudge-banner {
+    background: linear-gradient(135deg, rgba(108,99,255,.2), rgba(0,212,170,.1));
+    border: 1px solid rgba(108,99,255,.3); border-radius: var(--radius); padding: 18px 22px;
+    display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+  }
+  .nudge-icon { font-size: 1.8rem; flex-shrink: 0; }
+  .nudge-text { flex: 1; }
+  .nudge-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 3px; }
+  .nudge-sub { font-size: 0.82rem; color: var(--text-muted); }
+  .nudge-close { color: var(--text-muted); cursor: pointer; font-size: 1.2rem; }
+
+  /* TAGS */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .section-title { font-size: 1.1rem; font-weight: 700; }
+  .section-action { font-size: 0.82rem; color: var(--accent); cursor: pointer; }
+
+  /* MEMBER GRID */
+  .member-card {
+    background: var(--surface2); border-radius: var(--radius-sm); padding: 16px;
+    border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  }
+  .member-avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; position: relative; }
+  .member-avatar .online { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--surface2); position: absolute; bottom: 1px; right: 1px; }
+  .online-green { background: var(--green); }
+  .online-yellow { background: var(--yellow); }
+  .online-red { background: var(--red); }
+  .member-name { font-size: 0.85rem; font-weight: 600; }
+  .member-score { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
+  .member-streak { font-size: 0.75rem; color: var(--text-muted); }
+
+  /* DROPOUT RISK */
+  .risk-bar { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .risk-name { width: 100px; font-size: 0.85rem; flex-shrink: 0; }
+  .risk-track { flex: 1; background: var(--surface2); border-radius: 6px; height: 8px; overflow: hidden; }
+  .risk-fill { height: 100%; border-radius: 6px; }
+  .risk-pct { width: 40px; text-align: right; font-size: 0.82rem; font-weight: 700; }
+  .risk-high .risk-fill { background: var(--red); }
+  .risk-med .risk-fill { background: var(--yellow); }
+  .risk-low .risk-fill { background: var(--green); }
+
+  /* REPORT CARD */
+  .report-card {
+    background: linear-gradient(135deg, #1a1040, #0d2040);
+    border: 1px solid rgba(108,99,255,.3); border-radius: var(--radius); padding: 26px;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .report-card::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(108,99,255,.25), transparent);
+  }
+  .report-week { font-size: 0.75rem; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+  .report-score { font-size: 3.5rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .report-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; }
+  .report-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .report-stat { background: rgba(255,255,255,.05); border-radius: 10px; padding: 12px 8px; }
+  .report-stat-v { font-size: 1.3rem; font-weight: 800; }
+  .report-stat-l { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* PAGE HEADERS */
+  .page-header { margin-bottom: 28px; }
+  .page-title { font-size: 1.6rem; font-weight: 800; }
+  .page-subtitle { font-size: 0.88rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  /* CHART WRAPPER */
+  .chart-wrap { position: relative; height: 200px; }
+
+  /* MISC */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+  .mt-20 { margin-top: 20px; }
+  .gap-20 { gap: 20px; }
+  .flex { display: flex; align-items: center; }
+  .flex-between { display: flex; align-items: center; justify-content: space-between; }
+  .text-green { color: var(--green); }
+  .text-red { color: var(--red); }
+  .text-yellow { color: var(--yellow); }
+  .text-muted { color: var(--text-muted); }
+  .fw-700 { font-weight: 700; }
+  .fs-sm { font-size: 0.82rem; }
+  .mb-8 { margin-bottom: 8px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  select.form-input { appearance: none; -webkit-appearance: none; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="logo-icon">🏃</div>
+    <span>FitSync <span style="color:var(--accent2)">AI</span></span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('challenge')">Challenge</button>
+    <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
+    <button class="nav-tab" onclick="showPage('insights')">AI Insights</button>
+    <button class="nav-tab" onclick="showPage('create')">+ Create</button>
+  </div>
+  <div class="nav-user">
+    <div style="text-align:right"><div style="font-size:.85rem;font-weight:600">Riyona</div><div class="text-muted" style="font-size:.72rem">Streak: 🔥 12 days</div></div>
+    <div class="avatar">RI</div>
+  </div>
+</nav>
+
+<!-- ========== DASHBOARD PAGE ========== -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <div class="page-title">Good evening, Riyona 👋</div>
+    <div class="page-subtitle">Wednesday, May 27 • Day 12 of 30 • Summer Shred Challenge</div>
+  </div>
+
+  <!-- Nudge Banner -->
+  <div class="nudge-banner" id="nudgeBanner">
+    <div class="nudge-icon">🤖</div>
+    <div class="nudge-text">
+      <div class="nudge-title">AI Nudge — You're on a roll!</div>
+      <div class="nudge-sub">You usually complete your workout between 7–9 PM. It's 7:32 PM now — don't break your 12-day streak! 3 tasks left today.</div>
+    </div>
+    <span class="nudge-close" onclick="document.getElementById('nudgeBanner').style.display='none'">✕</span>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="grid-4 mb-24">
+    <div class="card stat-card">
+      <div class="card-title">Today's Score</div>
+      <div class="card-value">68<span style="font-size:1rem;color:var(--text-muted)">/100</span></div>
+      <div class="stat-badge badge-yellow">⚡ 3 tasks left</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Streak</div>
+      <div class="card-value">🔥 12</div>
+      <div class="stat-badge badge-green">↑ Personal best</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Challenge Rank</div>
+      <div class="card-value">#2<span style="font-size:1rem;color:var(--text-muted)">/8</span></div>
+      <div class="stat-badge badge-purple">↑ 1 since yesterday</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Completion Rate</div>
+      <div class="card-value">84%</div>
+      <div class="stat-badge badge-green">↑ vs 71% last week</div>
+    </div>
+  </div>
+
+  <div class="grid-2 gap-20">
+    <!-- Daily Checklist -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">Today's Checklist</div>
+        <span class="stat-badge badge-green">3/6 done</span>
+      </div>
+      <div class="checklist" id="checklist">
+        <div class="check-item done" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-label">
+            <div class="check-name">👟 Steps Goal</div>
+            <div class="check-meta">8,432 / 8,000 steps</div>
+          </div>
+          <div class="check-pts">+20 pts</div>
+        </div>
+        <div class="check-item done" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-label">
+            <div class="check-name">💧 Water Intake</div>
+            <div class="check-meta">2.5L / 2.5L consumed</div>
+          </div>
+          <div class="check-pts">+10 pts</div>
+        </div>
+        <div class="check-item done" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-label">
+            <div class="check-name">🧘 Mindfulness</div>
+            <div class="check-meta">15 / 15 minutes</div>
+          </div>
+          <div class="check-pts">+20 pts</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label">
+            <div class="check-name">🏋️ Workout</div>
+            <div class="check-meta">0 / 45 minutes · Chest &amp; Triceps</div>
+          </div>
+          <div class="check-pts">+30 pts</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label">
+            <div class="check-name">🥩 Protein Intake</div>
+            <div class="check-meta">82g / 120g consumed</div>
+          </div>
+          <div class="check-pts">+15 pts</div>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box"></div>
+          <div class="check-label">
+            <div class="check-name">😴 Sleep Goal</div>
+            <div class="check-meta">Log yesterday's sleep (7–8h)</div>
+          </div>
+          <div class="check-pts">+5 pts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <!-- Progress Ring -->
+      <div class="card">
+        <div class="card-title">Today's Progress</div>
+        <div class="ring-wrap">
+          <div class="ring-container" style="width:110px;height:110px">
+            <svg class="ring-svg" width="110" height="110" viewBox="0 0 110 110">
+              <circle class="ring-bg" cx="55" cy="55" r="46"/>
+              <circle class="ring-fill" id="ringFill" cx="55" cy="55" r="46"
+                stroke="url(#ringGrad)" stroke-dasharray="289" stroke-dashoffset="93"/>
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#6c63ff"/>
+                  <stop offset="100%" stop-color="#00d4aa"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="ring-center">
+              <div style="font-size:1.5rem;font-weight:900" id="ringPct">68%</div>
+              <div style="font-size:.7rem;color:var(--text-muted)">complete</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:1.8rem;font-weight:800" id="scoreLive">68</div>
+            <div class="text-muted fs-sm">points earned</div>
+            <div class="mt-20">
+              <div class="flex-between mb-8 fs-sm"><span>Steps</span><span class="text-green fw-700">✓</span></div>
+              <div class="flex-between mb-8 fs-sm"><span>Water</span><span class="text-green fw-700">✓</span></div>
+              <div class="flex-between mb-8 fs-sm"><span>Mindfulness</span><span class="text-green fw-700">✓</span></div>
+              <div class="flex-between mb-8 fs-sm"><span>Workout</span><span class="text-muted">pending</span></div>
+              <div class="flex-between mb-8 fs-sm"><span>Protein</span><span class="text-muted">partial</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Trend Mini -->
+      <div class="card">
+        <div class="card-title">7-Day Score Trend</div>
+        <div class="chart-wrap">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CHALLENGE PAGE ========== -->
+<div class="page" id="page-challenge">
+  <div class="page-header">
+    <div class="page-title">Summer Shred Challenge 🔥</div>
+    <div class="page-subtitle">Group Challenge · 30 Days · Started May 16 · 8 participants</div>
+  </div>
+
+  <!-- Challenge Stats -->
+  <div class="grid-4 mb-24">
+    <div class="card stat-card">
+      <div class="card-title">Days Remaining</div>
+      <div class="card-value">18</div>
+      <div class="stat-badge badge-yellow">Day 12 of 30</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Group Avg Score</div>
+      <div class="card-value">61</div>
+      <div class="stat-badge badge-green">↑ 8 vs last week</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Active Today</div>
+      <div class="card-value">6/8</div>
+      <div class="stat-badge badge-purple">75% participation</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Top Streak</div>
+      <div class="card-value">🔥 12</div>
+      <div class="stat-badge badge-green">Riyona (You)</div>
+    </div>
+  </div>
+
+  <div class="grid-2 gap-20 mb-24">
+    <!-- Challenge Progress Bar -->
+    <div class="card">
+      <div class="card-title mb-16">Challenge Timeline</div>
+      <div style="margin-bottom:10px">
+        <div class="flex-between mb-8 fs-sm"><span>Challenge Progress</span><span class="fw-700">40%</span></div>
+        <div style="background:var(--surface2);border-radius:8px;height:12px;overflow:hidden">
+          <div style="width:40%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:8px"></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="card-title mb-16">Your Goal Parameters</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="flex-between">
+          <div class="fs-sm">👟 Daily Steps</div>
+          <div>
+            <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar" style="width:100%"></div></div>
+          </div>
+          <div class="fs-sm text-green fw-700">8,432 ✓</div>
+        </div>
+        <div class="flex-between">
+          <div class="fs-sm">💧 Water (L)</div>
+          <div>
+            <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar" style="width:100%"></div></div>
+          </div>
+          <div class="fs-sm text-green fw-700">2.5L ✓</div>
+        </div>
+        <div class="flex-between">
+          <div class="fs-sm">🏋️ Workout</div>
+          <div>
+            <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar" style="width:0%"></div></div>
+          </div>
+          <div class="fs-sm text-muted">0/45 min</div>
+        </div>
+        <div class="flex-between">
+          <div class="fs-sm">🥩 Protein</div>
+          <div>
+            <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar" style="width:68%"></div></div>
+          </div>
+          <div class="fs-sm text-yellow">82/120g</div>
+        </div>
+        <div class="flex-between">
+          <div class="fs-sm">🧘 Mindfulness</div>
+          <div>
+            <div class="progress-bar-wrap" style="width:120px"><div class="progress-bar" style="width:100%"></div></div>
+          </div>
+          <div class="fs-sm text-green fw-700">15 min ✓</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group Activity -->
+    <div class="card">
+      <div class="section-header"><div class="section-title">Group Activity Today</div></div>
+      <div class="grid-3" style="gap:12px">
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#6c63ff,#a78bfa)">RI<div class="online online-green"></div></div>
+          <div class="member-name">Riyona</div>
+          <div class="member-score">68</div>
+          <div class="member-streak">🔥 12 days</div>
+          <div class="stat-badge badge-green" style="font-size:.68rem">Active</div>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#f97316,#fbbf24)">KV<div class="online online-green"></div></div>
+          <div class="member-name">Karan V</div>
+          <div class="member-score">85</div>
+          <div class="member-streak">🔥 12 days</div>
+          <div class="stat-badge badge-green" style="font-size:.68rem">Active</div>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)">PS<div class="online online-green"></div></div>
+          <div class="member-name">Priya S</div>
+          <div class="member-score">72</div>
+          <div class="member-streak">🔥 9 days</div>
+          <div class="stat-badge badge-green" style="font-size:.68rem">Active</div>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#10b981,#34d399)">AM<div class="online online-yellow"></div></div>
+          <div class="member-name">Arjun M</div>
+          <div class="member-score">54</div>
+          <div class="member-streak">🔥 7 days</div>
+          <div class="stat-badge badge-yellow" style="font-size:.68rem">Partial</div>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#ec4899,#f43f5e)">NS<div class="online online-red"></div></div>
+          <div class="member-name">Neha S</div>
+          <div class="member-score">30</div>
+          <div class="member-streak">💀 0 days</div>
+          <div class="stat-badge badge-red" style="font-size:.68rem">At Risk</div>
+        </div>
+        <div class="member-card">
+          <div class="member-avatar" style="background:linear-gradient(135deg,#7c3aed,#c084fc)">RT<div class="online online-green"></div></div>
+          <div class="member-name">Rahul T</div>
+          <div class="member-score">65</div>
+          <div class="member-streak">🔥 5 days</div>
+          <div class="stat-badge badge-green" style="font-size:.68rem">Active</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Score Chart -->
+  <div class="card">
+    <div class="card-title mb-16">Group Daily Scores — Last 12 Days</div>
+    <div class="chart-wrap" style="height:240px">
+      <canvas id="groupChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ========== LEADERBOARD PAGE ========== -->
+<div class="page" id="page-leaderboard">
+  <div class="page-header">
+    <div class="page-title">Leaderboard 🏆</div>
+    <div class="page-subtitle">Summer Shred Challenge · Updated just now</div>
+  </div>
+
+  <!-- Top 3 Podium -->
+  <div style="display:flex;align-items:flex-end;justify-content:center;gap:16px;margin-bottom:32px">
+    <!-- 2nd -->
+    <div style="text-align:center">
+      <div class="member-avatar" style="background:linear-gradient(135deg,#6c63ff,#a78bfa);width:56px;height:56px;font-size:1.1rem;margin:0 auto 8px">RI</div>
+      <div style="font-size:.85rem;font-weight:600">Riyona</div>
+      <div style="background:var(--surface2);border-radius:8px 8px 0 0;padding:20px 24px;margin-top:8px;border:1px solid var(--border)">
+        <div class="rank-num rank-2" style="font-size:1.8rem">2nd</div>
+        <div style="font-size:.8rem;color:var(--text-muted)">840 pts</div>
+      </div>
+    </div>
+    <!-- 1st -->
+    <div style="text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:4px">👑</div>
+      <div class="member-avatar" style="background:linear-gradient(135deg,#f97316,#fbbf24);width:64px;height:64px;font-size:1.2rem;margin:0 auto 8px;border:2px solid #ffd700">KV</div>
+      <div style="font-size:.85rem;font-weight:600">Karan V</div>
+      <div style="background:linear-gradient(180deg,rgba(255,215,0,.12),var(--surface2));border-radius:8px 8px 0 0;padding:28px 28px 20px;margin-top:8px;border:1px solid rgba(255,215,0,.3)">
+        <div class="rank-num rank-1" style="font-size:2rem">1st</div>
+        <div style="font-size:.8rem;color:var(--text-muted)">1,020 pts</div>
+      </div>
+    </div>
+    <!-- 3rd -->
+    <div style="text-align:center">
+      <div class="member-avatar" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);width:56px;height:56px;font-size:1.1rem;margin:0 auto 8px">PS</div>
+      <div style="font-size:.85rem;font-weight:600">Priya S</div>
+      <div style="background:var(--surface2);border-radius:8px 8px 0 0;padding:16px 24px;margin-top:8px;border:1px solid var(--border)">
+        <div class="rank-num rank-3" style="font-size:1.6rem">3rd</div>
+        <div style="font-size:.8rem;color:var(--text-muted)">756 pts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Table -->
+  <div class="card">
+    <table class="lb-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Player</th>
+          <th>Total Score</th>
+          <th>Today</th>
+          <th>Streak</th>
+          <th>Completion %</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="rank-num rank-1">1</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#f97316,#fbbf24)">KV</div><div><div style="font-weight:600">Karan Verma</div><div class="text-muted fs-sm">Fitness Level: Advanced</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">1,020</span></td>
+          <td><span class="text-green fw-700">85</span></td>
+          <td><span class="streak-badge">🔥 12</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:92%"></div></div> <span class="fs-sm text-muted">92%</span></td>
+          <td><span class="text-green">↑↑</span></td>
+        </tr>
+        <tr class="me">
+          <td><span class="rank-num rank-2">2</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#6c63ff,#a78bfa)">RI</div><div><div style="font-weight:600">Riyona <span class="stat-badge badge-purple" style="font-size:.68rem">You</span></div><div class="text-muted fs-sm">Fitness Level: Intermediate</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">840</span></td>
+          <td><span class="text-yellow fw-700">68</span></td>
+          <td><span class="streak-badge">🔥 12</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:84%"></div></div> <span class="fs-sm text-muted">84%</span></td>
+          <td><span class="text-green">↑</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num rank-3">3</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)">PS</div><div><div style="font-weight:600">Priya Sharma</div><div class="text-muted fs-sm">Fitness Level: Intermediate</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">756</span></td>
+          <td><span class="text-green fw-700">72</span></td>
+          <td><span class="streak-badge">🔥 9</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:79%"></div></div> <span class="fs-sm text-muted">79%</span></td>
+          <td><span class="text-green">↑</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num">4</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#7c3aed,#c084fc)">RT</div><div><div style="font-weight:600">Rahul Tiwari</div><div class="text-muted fs-sm">Fitness Level: Beginner</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">718</span></td>
+          <td><span class="fw-700">65</span></td>
+          <td><span class="streak-badge">🔥 5</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:75%"></div></div> <span class="fs-sm text-muted">75%</span></td>
+          <td><span class="text-green">↑</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num">5</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#10b981,#34d399)">AM</div><div><div style="font-weight:600">Arjun Mehta</div><div class="text-muted fs-sm">Fitness Level: Intermediate</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">648</span></td>
+          <td><span class="fw-700">54</span></td>
+          <td><span class="streak-badge">🔥 7</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:68%"></div></div> <span class="fs-sm text-muted">68%</span></td>
+          <td><span class="text-yellow">→</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num">6</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#64748b,#94a3b8)">VK</div><div><div style="font-weight:600">Vikram Kumar</div><div class="text-muted fs-sm">Fitness Level: Advanced</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">540</span></td>
+          <td><span class="fw-700">45</span></td>
+          <td><span class="streak-badge">🔥 3</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:56%"></div></div> <span class="fs-sm text-muted">56%</span></td>
+          <td><span class="text-red">↓</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num">7</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">SA</div><div><div style="font-weight:600">Sneha Agarwal</div><div class="text-muted fs-sm">Fitness Level: Beginner</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">432</span></td>
+          <td><span class="fw-700">38</span></td>
+          <td><span class="streak-badge">🔥 2</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:45%"></div></div> <span class="fs-sm text-muted">45%</span></td>
+          <td><span class="text-red">↓</span></td>
+        </tr>
+        <tr>
+          <td><span class="rank-num">8</span></td>
+          <td><div class="lb-user"><div class="lb-avatar" style="background:linear-gradient(135deg,#ec4899,#f43f5e)">NS</div><div><div style="font-weight:600">Neha Singh <span class="stat-badge badge-red" style="font-size:.65rem">⚠ At Risk</span></div><div class="text-muted fs-sm">Fitness Level: Beginner</div></div></div></td>
+          <td><span style="font-weight:800;font-size:1.05rem">324</span></td>
+          <td><span class="text-red fw-700">30</span></td>
+          <td><span class="streak-badge" style="background:rgba(255,101,132,.1);color:var(--red)">💀 0</span></td>
+          <td><div class="progress-bar-wrap" style="width:80px;display:inline-block"><div class="progress-bar" style="width:34%;background:var(--red)"></div></div> <span class="fs-sm text-muted">34%</span></td>
+          <td><span class="text-red">↓↓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== AI INSIGHTS PAGE ========== -->
+<div class="page" id="page-insights">
+  <div class="page-header">
+    <div class="page-title">AI Insights 🤖</div>
+    <div class="page-subtitle">Powered by 5 specialized agents · Last analyzed 2 min ago</div>
+  </div>
+
+  <!-- Agent Status -->
+  <div class="grid-3 mb-24">
+    <div style="grid-column:span 3">
+      <div class="card-title mb-16">Active AI Agents</div>
+    </div>
+  </div>
+  <div class="grid-3" style="gap:16px;margin-bottom:28px;margin-top:-24px">
+    <div class="agent-card">
+      <div class="agent-icon" style="background:rgba(108,99,255,.2)">🎯</div>
+      <div class="agent-name">Challenge Planner</div>
+      <div class="agent-desc">Creates challenge structures, balances goal difficulty, recommends sustainable routines based on user fitness level.</div>
+      <div class="agent-status"><div class="dot"></div>Active · Generated 3 challenges</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-icon" style="background:rgba(0,212,170,.2)">📡</div>
+      <div class="agent-name">Tracker Agent</div>
+      <div class="agent-desc">Syncs wearable data, validates inputs for anomalies, detects cheating patterns via GPS &amp; calorie inconsistencies.</div>
+      <div class="agent-status"><div class="dot"></div>Syncing · Apple Health connected</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-icon" style="background:rgba(255,209,102,.2)">🔔</div>
+      <div class="agent-name">Motivation Agent</div>
+      <div class="agent-desc">Detects inactivity windows, sends nudges at your optimal workout time, personalizes messages based on behavior.</div>
+      <div class="agent-status"><div class="dot"></div>Active · 2 nudges sent today</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-icon" style="background:rgba(255,101,132,.2)">📊</div>
+      <div class="agent-name">Analytics Agent</div>
+      <div class="agent-desc">Generates weekly/end-of-challenge reports, trend charts, habit consistency scores, and shareable story cards.</div>
+      <div class="agent-status"><div class="dot"></div>Active · Report ready Friday</div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-icon" style="background:rgba(6,182,212,.2)">👥</div>
+      <div class="agent-name">Social Agent</div>
+      <div class="agent-desc">Manages invites, reactions, competition matchmaking, ranks users by similar consistency &amp; fitness level.</div>
+      <div class="agent-status"><div class="dot"></div>Active · 2 match suggestions</div>
+    </div>
+    <div class="agent-card" style="background:rgba(108,99,255,.06);border-color:rgba(108,99,255,.3)">
+      <div class="agent-icon" style="background:rgba(108,99,255,.15)">🧠</div>
+      <div class="agent-name">Predictive Engine</div>
+      <div class="agent-desc">Predicts dropout risk, auto-adjusts goal intensity for struggling users, recommends recovery routines.</div>
+      <div class="agent-status"><div class="dot"></div>Active · 2 risk users flagged</div>
+    </div>
+  </div>
+
+  <div class="grid-2 gap-20 mb-24">
+    <!-- Personalized Insights -->
+    <div class="card">
+      <div class="section-title mb-16">Your Behavioral Insights</div>
+      <div class="insight-card good">
+        <div class="insight-label">Consistency Pattern</div>
+        <div class="insight-icon">💪</div>
+        <div class="insight-text">You complete workouts <strong>80% more often</strong> when challenged with friends vs solo. Keep the group going!</div>
+      </div>
+      <div class="insight-card warn">
+        <div class="insight-label">Hydration Pattern</div>
+        <div class="insight-icon">💧</div>
+        <div class="insight-text">Your hydration consistency <strong>drops 40% on weekends</strong>. Consider setting extra reminders on Saturday & Sunday.</div>
+      </div>
+      <div class="insight-card">
+        <div class="insight-label">Peak Performance Window</div>
+        <div class="insight-icon">⏰</div>
+        <div class="insight-text">Your best workout adherence is between <strong>7–9 PM</strong>. Your AI nudges are now scheduled at 7:00 PM daily.</div>
+      </div>
+      <div class="insight-card good">
+        <div class="insight-label">Streak Intelligence</div>
+        <div class="insight-icon">🔥</div>
+        <div class="insight-text">You've never broken a streak longer than 5 days before. At 12 days, <strong>you're in uncharted territory</strong> — this is your new record!</div>
+      </div>
+    </div>
+
+    <!-- Dropout Risk -->
+    <div class="card">
+      <div class="section-title mb-16">⚠ Dropout Risk Prediction</div>
+      <div class="insight-card alert mb-16" style="margin-bottom:16px">
+        <div class="insight-label">AI Prediction</div>
+        <div class="insight-text">2 users are at high risk of dropping out in the next 3 days. Intervention recommended.</div>
+      </div>
+      <div class="risk-bar risk-high">
+        <div class="risk-name fs-sm">Neha Singh</div>
+        <div class="risk-track"><div class="risk-fill" style="width:88%"></div></div>
+        <div class="risk-pct text-red">88%</div>
+      </div>
+      <div class="risk-bar risk-high">
+        <div class="risk-name fs-sm">Sneha Agarwal</div>
+        <div class="risk-track"><div class="risk-fill" style="width:62%"></div></div>
+        <div class="risk-pct text-red">62%</div>
+      </div>
+      <div class="risk-bar risk-med">
+        <div class="risk-name fs-sm">Vikram Kumar</div>
+        <div class="risk-track"><div class="risk-fill" style="width:41%"></div></div>
+        <div class="risk-pct text-yellow">41%</div>
+      </div>
+      <div class="risk-bar risk-low">
+        <div class="risk-name fs-sm">Arjun Mehta</div>
+        <div class="risk-track"><div class="risk-fill" style="width:22%"></div></div>
+        <div class="risk-pct text-green">22%</div>
+      </div>
+      <div class="risk-bar risk-low">
+        <div class="risk-name fs-sm">Rahul Tiwari</div>
+        <div class="risk-track"><div class="risk-fill" style="width:15%"></div></div>
+        <div class="risk-pct text-green">15%</div>
+      </div>
+      <div class="risk-bar risk-low">
+        <div class="risk-name fs-sm">Priya Sharma</div>
+        <div class="risk-track"><div class="risk-fill" style="width:8%"></div></div>
+        <div class="risk-pct text-green">8%</div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="alert('AI intervention sent! Personalized nudges dispatched to at-risk users.')">🤖 Trigger AI Intervention</button>
+    </div>
+  </div>
+
+  <!-- Weekly Report Card -->
+  <div class="grid-2 gap-20">
+    <div class="card">
+      <div class="section-title mb-16">Consistency Heatmap — Last 30 Days</div>
+      <div id="heatmap" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px"></div>
+      <div style="display:flex;gap:16px;margin-top:12px;font-size:.72rem;color:var(--text-muted)">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--surface2);display:inline-block"></span>Missed</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(108,99,255,.4);display:inline-block"></span>Partial</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--green);display:inline-block"></span>Complete</span>
+      </div>
+    </div>
+
+    <!-- Weekly Report -->
+    <div class="report-card">
+      <div class="report-week">Week 2 · May 20 – 26, 2026</div>
+      <div class="report-score">84%</div>
+      <div class="report-label">Weekly Consistency Score</div>
+      <div class="report-stats">
+        <div class="report-stat">
+          <div class="report-stat-v text-green">6/7</div>
+          <div class="report-stat-l">Days Active</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-v text-yellow">🔥 12</div>
+          <div class="report-stat-l">Best Streak</div>
+        </div>
+        <div class="report-stat">
+          <div class="report-stat-v">#2</div>
+          <div class="report-stat-l">Group Rank</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:.82rem;color:var(--text-muted);background:rgba(0,0,0,.2);border-radius:8px;padding:10px 12px;">
+        🏆 <strong>Best Performer:</strong> Karan Verma (92%)<br>
+        ⚡ <strong>Most Improved:</strong> Rahul Tiwari (+18%)<br>
+        ⚠ <strong>Needs Support:</strong> Neha Singh (34%)
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-outline" style="flex:1;font-size:.8rem" onclick="alert('Report PDF generated!')">📄 Download PDF</button>
+        <button class="btn btn-primary" style="flex:1;font-size:.8rem" onclick="alert('Story card ready to share!')">📲 Share Card</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CREATE CHALLENGE PAGE ========== -->
+<div class="page" id="page-create">
+  <div class="page-header">
+    <div class="page-title">Create New Challenge ⚡</div>
+    <div class="page-subtitle">AI will auto-generate balanced goals based on your inputs</div>
+  </div>
+
+  <div class="grid-2 gap-20">
+    <div class="card">
+      <!-- Step Indicators -->
+      <div class="step-indicators" id="stepIndicators">
+        <div class="step-dot active" onclick="goStep(1)"></div>
+        <div class="step-dot" onclick="goStep(2)"></div>
+        <div class="step-dot" onclick="goStep(3)"></div>
+        <div class="step-dot" onclick="goStep(4)"></div>
+      </div>
+
+      <!-- Step 1: Basics -->
+      <div class="form-step active" id="step1">
+        <div class="section-title mb-16">Step 1: Challenge Basics</div>
+        <div class="form-group">
+          <label class="form-label">Challenge Name</label>
+          <input class="form-input" type="text" placeholder="e.g. Summer Shred 2026" id="cName">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input class="form-input" type="date" id="cStart">
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date</label>
+            <input class="form-input" type="date" id="cEnd">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Challenge Type</label>
+          <div class="type-cards" id="typeCards">
+            <div class="type-card active" onclick="selectType(this)">
+              <div class="ti">🧘</div><div class="tl">Solo</div>
+            </div>
+            <div class="type-card" onclick="selectType(this)">
+              <div class="ti">⚔️</div><div class="tl">1v1</div>
+            </div>
+            <div class="type-card" onclick="selectType(this)">
+              <div class="ti">👥</div><div class="tl">Group</div>
+            </div>
+            <div class="type-card" onclick="selectType(this)">
+              <div class="ti">🏅</div><div class="tl">Team Battle</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="goStep(2)">Next →</button>
+      </div>
+
+      <!-- Step 2: Goals -->
+      <div class="form-step" id="step2">
+        <div class="section-title mb-16">Step 2: Select Fitness Goals</div>
+        <div class="form-group">
+          <label class="form-label">Choose goal parameters (select all that apply)</label>
+          <div class="goal-chips" id="goalChips">
+            <div class="chip active" onclick="this.classList.toggle('active')">👟 Step Count</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">💧 Water Intake</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">🔥 Calories Burnt</div>
+            <div class="chip" onclick="this.classList.toggle('active')">🏃 Running Distance</div>
+            <div class="chip" onclick="this.classList.toggle('active')">⚡ Running Pace</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">🏋️ Workout Frequency</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">🧘 Meditation Mins</div>
+            <div class="chip" onclick="this.classList.toggle('active')">😴 Sleep Duration</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">🥩 Protein Intake</div>
+            <div class="chip" onclick="this.classList.toggle('active')">💪 Body-Part Workouts</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Difficulty Level</label>
+          <select class="form-input" id="cDifficulty">
+            <option>Beginner — Light goals, habit-forming focus</option>
+            <option selected>Intermediate — Balanced goals, moderate intensity</option>
+            <option>Advanced — High targets, performance focus</option>
+            <option>AI Auto-Balance — Let the AI decide based on your profile</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
+          <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Rules & Scoring -->
+      <div class="form-step" id="step3">
+        <div class="section-title mb-16">Step 3: Rules & Scoring</div>
+        <div class="form-group">
+          <label class="form-label">Scoring Method</label>
+          <select class="form-input">
+            <option>Points per goal completed (recommended)</option>
+            <option>Daily completion % average</option>
+            <option>AI Fairness Score (adjusted by fitness level)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Streak Rules</label>
+          <select class="form-input">
+            <option>Standard — miss a day, streak resets</option>
+            <option>Streak Freeze — 1 freeze per week allowed</option>
+            <option>Lenient — 2 missed days before reset</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fairness Logic</label>
+          <div class="goal-chips">
+            <div class="chip active" onclick="this.classList.toggle('active')">⚖️ Adjust by fitness level</div>
+            <div class="chip active" onclick="this.classList.toggle('active')">🛡️ Cheating detection ON</div>
+            <div class="chip" onclick="this.classList.toggle('active')">🔓 Manual override allowed</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+          <button class="btn btn-primary" onclick="goStep(4)">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Invite -->
+      <div class="form-step" id="step4">
+        <div class="section-title mb-16">Step 4: Invite & Launch</div>
+        <div class="form-group">
+          <label class="form-label">Invite via Email or Username</label>
+          <input class="form-input" type="text" placeholder="friend@email.com or @username" id="inviteInput">
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px" id="invitedList">
+          <span style="background:rgba(0,212,170,.15);color:var(--green);padding:5px 12px;border-radius:20px;font-size:.8rem">✓ karan.v@fit.com</span>
+          <span style="background:rgba(0,212,170,.15);color:var(--green);padding:5px 12px;border-radius:20px;font-size:.8rem">✓ priya.sharma@fit.com</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Wearable Integration</label>
+          <div class="goal-chips">
+            <div class="chip active" onclick="this.classList.toggle('active')">🍎 Apple Health</div>
+            <div class="chip" onclick="this.classList.toggle('active')">🤖 Google Fit</div>
+            <div class="chip" onclick="this.classList.toggle('active')">⌚ Garmin</div>
+            <div class="chip" onclick="this.classList.toggle('active')">📱 Samsung Health</div>
+            <div class="chip" onclick="this.classList.toggle('active')">⌚ Fitbit</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-outline" onclick="goStep(3)">← Back</button>
+          <button class="btn btn-primary" onclick="launchChallenge()">🚀 Launch Challenge</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Preview Panel -->
+    <div>
+      <div class="card mb-20">
+        <div class="section-title mb-16">🤖 AI Challenge Preview</div>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px;margin-bottom:12px">
+          <div class="card-title mb-8">Auto-Generated Goals</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="flex-between fs-sm"><span>👟 Steps</span><span class="fw-700 text-green">8,000 / day</span></div>
+            <div class="flex-between fs-sm"><span>💧 Water</span><span class="fw-700 text-green">2.5L / day</span></div>
+            <div class="flex-between fs-sm"><span>🏋️ Workout</span><span class="fw-700 text-green">45 min / day</span></div>
+            <div class="flex-between fs-sm"><span>🧘 Mindfulness</span><span class="fw-700 text-green">15 min / day</span></div>
+            <div class="flex-between fs-sm"><span>🥩 Protein</span><span class="fw-700 text-green">120g / day</span></div>
+            <div class="flex-between fs-sm"><span>🔥 Calories Burnt</span><span class="fw-700 text-green">400 kcal / day</span></div>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:16px">
+          <div class="card-title mb-8">Scoring Breakdown</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="flex-between fs-sm"><span>Steps</span><span class="text-yellow fw-700">20 pts</span></div>
+            <div class="flex-between fs-sm"><span>Water</span><span class="text-yellow fw-700">10 pts</span></div>
+            <div class="flex-between fs-sm"><span>Workout</span><span class="text-yellow fw-700">30 pts</span></div>
+            <div class="flex-between fs-sm"><span>Mindfulness</span><span class="text-yellow fw-700">20 pts</span></div>
+            <div class="flex-between fs-sm"><span>Protein</span><span class="text-yellow fw-700">15 pts</span></div>
+            <div class="flex-between fs-sm"><span>Calories</span><span class="text-yellow fw-700">5 pts</span></div>
+            <div class="divider" style="margin:8px 0"></div>
+            <div class="flex-between fs-sm fw-700"><span>Max Daily Score</span><span class="text-green">100 pts</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-card good">
+        <div class="insight-label">AI Recommendation</div>
+        <div class="insight-icon">🧠</div>
+        <div class="insight-text">Based on your history, these goals match your <strong>Intermediate</strong> level. You have an 87% predicted success rate for this challenge. Protein goal is slightly aggressive — consider starting at 100g.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ NAV ============
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+  if (id === 'insights') buildHeatmap();
+}
+
+// ============ CHECKLIST ============
+let checkScore = 68;
+const scoreMap = { 0: 20, 1: 10, 2: 20, 3: 30, 4: 15, 5: 5 };
+function toggleCheck(el) {
+  const idx = Array.from(el.parentElement.children).indexOf(el);
+  const wasDone = el.classList.contains('done');
+  el.classList.toggle('done');
+  el.querySelector('.check-box').textContent = wasDone ? '' : '✓';
+  const delta = wasDone ? -scoreMap[idx] : scoreMap[idx];
+  checkScore = Math.max(0, Math.min(100, checkScore + delta));
+  updateScoreDisplay();
+}
+function updateScoreDisplay() {
+  document.getElementById('scoreLive').textContent = checkScore;
+  document.getElementById('ringPct').textContent = checkScore + '%';
+  const offset = 289 - (289 * checkScore / 100);
+  document.getElementById('ringFill').style.strokeDashoffset = offset;
+}
+
+// ============ TREND CHART ============
+window.addEventListener('DOMContentLoaded', () => {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['D5','D6','D7','D8','D9','D10','D11','D12'],
+      datasets: [{
+        label: 'Your Score',
+        data: [55, 72, 68, 80, 75, 90, 85, 68],
+        borderColor: '#6c63ff', backgroundColor: 'rgba(108,99,255,.12)',
+        tension: 0.4, fill: true, pointBackgroundColor: '#6c63ff', pointRadius: 4
+      }, {
+        label: 'Group Avg',
+        data: [50, 58, 62, 65, 60, 68, 64, 61],
+        borderColor: '#00d4aa', borderDash: [5,5],
+        tension: 0.4, fill: false, pointRadius: 3, pointBackgroundColor: '#00d4aa'
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#7986a3', font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#7986a3', font:{size:10} }, grid: { color: 'rgba(30,45,69,.5)' } },
+        y: { ticks: { color: '#7986a3', font:{size:10} }, grid: { color: 'rgba(30,45,69,.5)' }, min: 0, max: 100 }
+      }
+    }
+  });
+
+  // Group chart
+  const ctx2 = document.getElementById('groupChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: ['D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12'],
+      datasets: [
+        { label: 'Karan', data: [75,80,88,82,90,95,85,92,88,95,90,85], backgroundColor: 'rgba(249,115,22,.7)', borderRadius: 4 },
+        { label: 'Riyona', data: [60,68,72,65,78,80,85,80,75,90,85,68], backgroundColor: 'rgba(108,99,255,.7)', borderRadius: 4 },
+        { label: 'Priya', data: [55,62,68,72,70,75,80,75,70,82,78,72], backgroundColor: 'rgba(6,182,212,.7)', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#7986a3', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color: '#7986a3', font:{size:10} }, grid: { color: 'rgba(30,45,69,.3)' } },
+        y: { ticks: { color: '#7986a3', font:{size:10} }, grid: { color: 'rgba(30,45,69,.3)' }, min: 0, max: 100 }
+      }
+    }
+  });
+});
+
+// ============ HEATMAP ============
+function buildHeatmap() {
+  const el = document.getElementById('heatmap');
+  if (el.childElementCount > 0) return;
+  const scores = [0,0,0,1,1,2,2,2,1,2,2,2,0,2,2,1,2,2,2,0,2,2,2,2,2,1,2,2,2,2];
+  const colors = ['var(--surface2)', 'rgba(108,99,255,.35)', 'var(--green)'];
+  scores.forEach((s,i) => {
+    const d = document.createElement('div');
+    d.style.cssText = `width:100%;aspect-ratio:1;border-radius:4px;background:${colors[s]};cursor:pointer;title:Day ${i+1}`;
+    d.title = `Day ${i+1}: ${['Missed','Partial','Complete'][s]}`;
+    el.appendChild(d);
+  });
+}
+
+// ============ MULTI-STEP FORM ============
+let currentStep = 1;
+function goStep(n) {
+  document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('step'+n).classList.add('active');
+  const dots = document.querySelectorAll('.step-dot');
+  dots.forEach((d,i) => {
+    d.classList.remove('active','done');
+    if (i+1 < n) d.classList.add('done');
+    if (i+1 === n) d.classList.add('active');
+  });
+  currentStep = n;
+}
+function selectType(el) {
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+function launchChallenge() {
+  const name = document.getElementById('cName').value || 'My New Challenge';
+  alert(`🚀 "${name}" launched!\n\nInvites sent to 2 friends.\nAI goals auto-generated.\nChallenge starts on your selected date.\n\nGood luck! 💪`);
+  showPage('dashboard');
+  document.querySelectorAll('.nav-tab')[0].click();
+}
+
+// Set default dates
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const end = new Date(Date.now() + 30*864e5).toISOString().split('T')[0];
+  document.getElementById('cStart').value = today;
+  document.getElementById('cEnd').value = end;
+});
+</script>
+</body>
+</html>
